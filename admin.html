@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Panel de Administración - Jóvenes Fuente de Luz">
+    <title>Admin | Jóvenes Fuente de Luz</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="preconnect" href="https://fonts.cdnfonts.com">
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="js/firebase-config.js"></script>
+</head>
+
+<body>
+    <div class="admin-container">
+        <!-- Header -->
+        <header class="header">
+            <h1 class="logo-text">FDL</h1>
+            <p class="logo-subtitle">Panel de Administración</p>
+        </header>
+
+        <!-- Login Form (visible por defecto) -->
+        <div class="form-card login-card" id="loginSection">
+            <form id="loginForm" class="form" novalidate>
+                <h2 class="form-title">Acceso <span>Admin</span></h2>
+
+                <div class="form-group">
+                    <label for="username">Usuario</label>
+                    <input type="text" id="username" name="username" class="form-input" placeholder="Nombre de usuario"
+                        required autocomplete="username">
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Contraseña</label>
+                    <input type="password" id="password" name="password" class="form-input" placeholder="Contraseña"
+                        required autocomplete="current-password">
+                </div>
+
+                <div id="loginError" class="error-message" style="display: none; margin-bottom: 15px;">
+                    Usuario o contraseña incorrectos
+                </div>
+
+                <button type="submit" class="btn-submit" id="loginBtn">
+                    <span class="btn-text">Iniciar Sesión</span>
+                    <span class="spinner"></span>
+                </button>
+            </form>
+
+            <div class="footer" style="margin-top: 20px;">
+                <a href="index.html">← Volver al formulario</a>
+            </div>
+        </div>
+
+        <!-- Panel de Admin (oculto por defecto) -->
+        <div id="adminPanel" style="display: none;">
+            <div class="admin-header">
+                <h2 class="admin-title">Registros</h2>
+                <div class="admin-actions">
+                    <button class="btn-action btn-export" id="exportBtn">
+                        📥 Exportar CSV
+                    </button>
+                    <button class="btn-action btn-logout" id="logoutBtn">
+                        Cerrar Sesión
+                    </button>
+                </div>
+            </div>
+
+            <!-- Estadísticas -->
+            <div class="stats-bar" id="statsBar">
+                <div class="stat-item">
+                    <div class="stat-number" id="totalRegistros">0</div>
+                    <div class="stat-label">Total Registros</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" id="totalBautizados">0</div>
+                    <div class="stat-label">Bautizados</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" id="totalNoBautizados">0</div>
+                    <div class="stat-label">No Bautizados</div>
+                </div>
+            </div>
+
+            <!-- Tabla de registros -->
+            <div class="table-container">
+                <table class="data-table" id="registrosTable">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Nombre</th>
+                            <th>Apellido</th>
+                            <th>Teléfono</th>
+                            <th>Nacimiento</th>
+                            <th>Bautizado</th>
+                            <th>Fecha Registro</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="registrosBody">
+                        <!-- Los registros se cargan dinámicamente -->
+                    </tbody>
+                </table>
+                <div class="no-data" id="noData" style="display: none;">
+                    No hay registros aún
+                </div>
+            </div>
+
+            <div class="footer" style="margin-top: 30px;">
+                <a href="index.html">← Volver al formulario</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // LÓGICA DEL PANEL DE ADMINISTRACIÓN - FIREBASE
+        // ============================================
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const loginSection = document.getElementById('loginSection');
+            const adminPanel = document.getElementById('adminPanel');
+            const loginForm = document.getElementById('loginForm');
+            const loginBtn = document.getElementById('loginBtn');
+            const loginError = document.getElementById('loginError');
+            const logoutBtn = document.getElementById('logoutBtn');
+            const exportBtn = document.getElementById('exportBtn');
+
+            // Variable para almacenar los registros actuales
+            let currentRegistros = [];
+
+            // Escuchar cambios en el estado de autenticación
+            auth.onAuthStateChanged(function (user) {
+                if (user) {
+                    showAdminPanel();
+                    loadRegistros();
+                } else {
+                    showLoginSection();
+                }
+            });
+
+            // Manejar login con Firebase Auth
+            loginForm.addEventListener('submit', async function (e) {
+                e.preventDefault();
+
+                loginBtn.classList.add('loading');
+                loginBtn.disabled = true;
+                loginError.style.display = 'none';
+
+                const email = document.getElementById('username').value.trim();
+                const password = document.getElementById('password').value;
+
+                try {
+                    await auth.signInWithEmailAndPassword(email, password);
+                    // El listener onAuthStateChanged manejará la navegación
+                } catch (error) {
+                    console.error('Error:', error);
+                    if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+                        loginError.textContent = 'Usuario o contraseña incorrectos';
+                    } else if (error.code === 'auth/invalid-email') {
+                        loginError.textContent = 'Email inválido';
+                    } else {
+                        loginError.textContent = 'Error de conexión';
+                    }
+                    loginError.style.display = 'block';
+                } finally {
+                    loginBtn.classList.remove('loading');
+                    loginBtn.disabled = false;
+                }
+            });
+
+            // Logout con Firebase
+            logoutBtn.addEventListener('click', async function () {
+                try {
+                    await auth.signOut();
+                } catch (e) {
+                    console.error('Error al cerrar sesión:', e);
+                }
+            });
+
+            // Exportar CSV (generado en el cliente)
+            exportBtn.addEventListener('click', function () {
+                if (currentRegistros.length === 0) {
+                    alert('No hay registros para exportar');
+                    return;
+                }
+
+                // Crear CSV
+                const headers = ['ID', 'Nombre', 'Apellido', 'Teléfono', 'Nacimiento', 'Bautizado', 'Fecha Registro'];
+                const csvContent = [
+                    headers.join(','),
+                    ...currentRegistros.map(reg => [
+                        reg.id,
+                        `"${reg.nombre}"`,
+                        `"${reg.apellido}"`,
+                        reg.telefono,
+                        reg.nacimiento,
+                        reg.bautizado,
+                        reg.fecha_registro ? new Date(reg.fecha_registro.toDate()).toISOString() : ''
+                    ].join(','))
+                ].join('\n');
+
+                // Descargar archivo
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `registros_fdl_${new Date().toISOString().split('T')[0]}.csv`;
+                link.click();
+            });
+
+            // Mostrar panel admin
+            function showAdminPanel() {
+                loginSection.style.display = 'none';
+                adminPanel.style.display = 'block';
+            }
+
+            // Mostrar login
+            function showLoginSection() {
+                adminPanel.style.display = 'none';
+                loginSection.style.display = 'block';
+                loginForm.reset();
+            }
+
+            // Cargar registros desde Firestore
+            async function loadRegistros() {
+                try {
+                    const snapshot = await db.collection('registros')
+                        .orderBy('fecha_registro', 'desc')
+                        .get();
+
+                    const registros = [];
+                    snapshot.forEach(doc => {
+                        registros.push({
+                            id: doc.id,
+                            ...doc.data()
+                        });
+                    });
+
+                    currentRegistros = registros;
+                    renderRegistros(registros);
+                    updateStats(registros);
+                } catch (error) {
+                    console.error('Error cargando registros:', error);
+                    alert('Error al cargar los registros. Verifica que Firestore esté configurado correctamente.');
+                }
+            }
+
+            // Renderizar tabla
+            function renderRegistros(registros) {
+                const tbody = document.getElementById('registrosBody');
+                const noData = document.getElementById('noData');
+
+                if (registros.length === 0) {
+                    tbody.innerHTML = '';
+                    noData.style.display = 'block';
+                    return;
+                }
+
+                noData.style.display = 'none';
+
+                tbody.innerHTML = registros.map(reg => `
+                    <tr>
+                        <td>${escapeHtml(String(reg.id).substring(0, 8))}...</td>
+                        <td>${escapeHtml(reg.nombre || '')}</td>
+                        <td>${escapeHtml(reg.apellido || '')}</td>
+                        <td>${escapeHtml(reg.telefono || '')}</td>
+                        <td>${formatDate(reg.nacimiento)}</td>
+                        <td>
+                            <span class="badge ${reg.bautizado === 'si' ? 'badge-yes' : 'badge-no'}">
+                                ${reg.bautizado === 'si' ? 'Sí' : 'No'}
+                            </span>
+                        </td>
+                        <td>${formatDateTime(reg.fecha_registro)}</td>
+                        <td>
+                            <button class="btn-delete" onclick="deleteRegistro('${reg.id}')">
+                                Eliminar
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+
+            // Actualizar estadísticas
+            function updateStats(registros) {
+                const total = registros.length;
+                const bautizados = registros.filter(r => r.bautizado === 'si').length;
+                const noBautizados = total - bautizados;
+
+                document.getElementById('totalRegistros').textContent = total;
+                document.getElementById('totalBautizados').textContent = bautizados;
+                document.getElementById('totalNoBautizados').textContent = noBautizados;
+            }
+
+            // Función global para eliminar
+            window.deleteRegistro = async function (id) {
+                if (!confirm('¿Estás seguro de eliminar este registro?')) {
+                    return;
+                }
+
+                try {
+                    await db.collection('registros').doc(id).delete();
+                    loadRegistros(); // Recargar tabla
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Error al eliminar el registro');
+                }
+            };
+
+            // Helpers
+            function escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            function formatDate(dateString) {
+                if (!dateString) return '-';
+                const date = new Date(dateString + 'T00:00:00');
+                return date.toLocaleDateString('es-ES');
+            }
+
+            function formatDateTime(timestamp) {
+                if (!timestamp) return '-';
+                // Firebase Timestamp
+                const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+                return date.toLocaleDateString('es-ES') + ' ' +
+                    date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+            }
+        });
+    </script>
+</body>
+
+</html>

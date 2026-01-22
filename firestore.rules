@@ -1,0 +1,13 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Reglas para la colección 'registros'
+    match /registros/{document} {
+      // Cualquiera puede crear un registro
+      allow create: if true;
+      
+      // Solo usuarios autenticados (admin) pueden leer, actualizar o borrar
+      allow read, update, delete: if request.auth != null;
+    }
+  }
+}

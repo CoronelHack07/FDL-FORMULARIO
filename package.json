@@ -1,0 +1,26 @@
+{
+  "name": "formulario-fdl",
+  "version": "1.0.0",
+  "description": "Formulario dinámico para Jóvenes Fuente de Luz",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js",
+    "dev": "node server/server.js"
+  },
+  "keywords": [
+    "formulario",
+    "fdl",
+    "jovenes"
+  ],
+  "author": "FDL",
+  "license": "ISC",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "express": "^4.18.2",
+    "express-session": "^1.17.3",
+    "firebase": "^12.8.0",
+    "helmet": "^7.1.0",
+    "sql.js": "^1.10.3",
+    "validator": "^13.11.0"
+  }
+}

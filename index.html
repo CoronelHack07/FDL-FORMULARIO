@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Formulario de registro para Jóvenes Fuente de Luz - FDL">
+    <title>Registro | Jóvenes Fuente de Luz</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <!-- Preconnect para mejor rendimiento -->
+    <link rel="preconnect" href="https://fonts.cdnfonts.com">
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="js/firebase-config.js"></script>
+</head>
+
+<body>
+    <div class="container">
+        <!-- Header con logo FDL -->
+        <header class="header">
+            <h1 class="logo-text">FDL</h1>
+            <p class="logo-subtitle">Jóvenes Fuente de Luz</p>
+        </header>
+
+        <!-- Versículo bíblico -->
+        <div class="verse-container">
+            <p class="verse-text">
+                "Porque yo sé los pensamientos que tengo acerca de vosotros, dice Jehová,
+                pensamientos de paz, y no de mal, para daros el fin que esperáis."
+                <span class="verse-reference">— Jeremías 29:11</span>
+            </p>
+        </div>
+
+        <!-- Card del formulario -->
+        <div class="form-card">
+            <!-- Formulario -->
+            <form id="registroForm" class="form" novalidate>
+                <h2 class="form-title">Únete a <span>Nosotros</span></h2>
+
+                <!-- Nombre -->
+                <div class="form-group" id="nombreGroup">
+                    <label for="nombre">
+                        Nombre <span class="required">*</span>
+                    </label>
+                    <input type="text" id="nombre" name="nombre" class="form-input" placeholder="Ingresa tu nombre"
+                        maxlength="50" required autocomplete="given-name">
+                    <span class="error-message" id="nombreError">
+                        Solo se permiten letras y espacios (2-50 caracteres)
+                    </span>
+                </div>
+
+                <!-- Apellido -->
+                <div class="form-group" id="apellidoGroup">
+                    <label for="apellido">
+                        Apellido <span class="required">*</span>
+                    </label>
+                    <input type="text" id="apellido" name="apellido" class="form-input"
+                        placeholder="Ingresa tu apellido" maxlength="50" required autocomplete="family-name">
+                    <span class="error-message" id="apellidoError">
+                        Solo se permiten letras y espacios (2-50 caracteres)
+                    </span>
+                </div>
+
+                <!-- Teléfono -->
+                <div class="form-group" id="telefonoGroup">
+                    <label for="telefono">
+                        Teléfono <span class="required">*</span>
+                    </label>
+                    <input type="tel" id="telefono" name="telefono" class="form-input" placeholder="Ej: 04121234567"
+                        maxlength="15" required autocomplete="tel">
+                    <span class="error-message" id="telefonoError">
+                        Solo se permiten números (7-15 dígitos)
+                    </span>
+                </div>
+
+                <!-- Fecha de Nacimiento -->
+                <div class="form-group" id="nacimientoGroup">
+                    <label for="nacimiento">
+                        Fecha de Nacimiento <span class="required">*</span>
+                    </label>
+                    <input type="date" id="nacimiento" name="nacimiento" class="form-input" required>
+                    <span class="error-message" id="nacimientoError">
+                        Por favor ingresa una fecha válida
+                    </span>
+                </div>
+
+                <!-- Bautizado -->
+                <div class="form-group" id="bautizadoGroup">
+                    <label for="bautizado">
+                        ¿Estás Bautizado? <span class="required">*</span>
+                    </label>
+                    <select id="bautizado" name="bautizado" class="form-select" required>
+                        <option value="">Selecciona una opción</option>
+                        <option value="si">Sí</option>
+                        <option value="no">No</option>
+                    </select>
+                    <span class="error-message" id="bautizadoError">
+                        Por favor selecciona una opción
+                    </span>
+                </div>
+
+                <!-- Botón Submit -->
+                <button type="submit" class="btn-submit" id="submitBtn">
+                    <span class="btn-text">Registrarse</span>
+                    <span class="spinner"></span>
+                </button>
+            </form>
+
+            <!-- Mensaje de éxito (oculto por defecto) -->
+            <div class="success-message" id="successMessage">
+                <div class="success-icon">✓</div>
+                <h3 class="success-title">¡Registro Exitoso!</h3>
+                <p class="success-text">
+                    Gracias por unirte a Jóvenes Fuente de Luz.<br>
+                    ¡Dios te bendiga abundantemente!
+                </p>
+                <button type="button" class="btn-new" id="newRegisterBtn">
+                    Nuevo Registro
+                </button>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>© 2024 Jóvenes Fuente de Luz | <a href="admin.html">Administración</a></p>
+        </footer>
+    </div>
+
+    <!-- JavaScript para validaciones y envío -->
+    <script>
+        // ============================================
+        // VALIDACIONES Y LÓGICA DEL FORMULARIO
+        // ============================================
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const form = document.getElementById('registroForm');
+            const submitBtn = document.getElementById('submitBtn');
+            const successMessage = document.getElementById('successMessage');
+            const newRegisterBtn = document.getElementById('newRegisterBtn');
+
+            // Patrones de validación (sin caracteres especiales, previene scripts)
+            const patterns = {
+                nombre: /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]{2,50}$/,
+                apellido: /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]{2,50}$/,
+                telefono: /^[0-9]{7,15}$/
+            };
+
+            // Mensajes de error personalizados
+            const errorMessages = {
+                nombre: 'Solo se permiten letras y espacios (2-50 caracteres)',
+                apellido: 'Solo se permiten letras y espacios (2-50 caracteres)',
+                telefono: 'Solo se permiten números (7-15 dígitos)',
+                nacimiento: 'Por favor ingresa una fecha válida',
+                bautizado: 'Por favor selecciona una opción'
+            };
+
+            // Función para sanitizar entrada (prevenir XSS)
+            function sanitizeInput(input) {
+                const div = document.createElement('div');
+                div.textContent = input;
+                return div.innerHTML
+                    .replace(/[<>\"\'&]/g, '') // Eliminar caracteres peligrosos
+                    .trim();
+            }
+
+            // Función para validar campo individual
+            function validateField(fieldId) {
+                const field = document.getElementById(fieldId);
+                const group = document.getElementById(fieldId + 'Group');
+                let isValid = true;
+
+                // Sanitizar el valor
+                let value = field.value;
+
+                if (fieldId === 'nombre' || fieldId === 'apellido') {
+                    value = sanitizeInput(value);
+                    field.value = value;
+                    isValid = patterns[fieldId].test(value);
+                } else if (fieldId === 'telefono') {
+                    // Solo permitir números
+                    value = value.replace(/[^0-9]/g, '');
+                    field.value = value;
+                    isValid = patterns.telefono.test(value);
+                } else if (fieldId === 'nacimiento') {
+                    isValid = value !== '' && isValidDate(value);
+                } else if (fieldId === 'bautizado') {
+                    isValid = value !== '';
+                }
+
+                // Mostrar/ocultar error
+                if (isValid) {
+                    group.classList.remove('has-error');
+                    field.classList.remove('error');
+                } else {
+                    group.classList.add('has-error');
+                    field.classList.add('error');
+                }
+
+                return isValid;
+            }
+
+            // Validar fecha lógica (no futura, no muy antigua)
+            function isValidDate(dateString) {
+                const date = new Date(dateString);
+                const today = new Date();
+                const minDate = new Date('1920-01-01');
+
+                return date <= today && date >= minDate;
+            }
+
+            // Agregar validación en tiempo real
+            ['nombre', 'apellido', 'telefono', 'nacimiento', 'bautizado'].forEach(fieldId => {
+                const field = document.getElementById(fieldId);
+
+                field.addEventListener('input', function () {
+                    // Para nombre y apellido, filtrar caracteres no permitidos en tiempo real
+                    if (fieldId === 'nombre' || fieldId === 'apellido') {
+                        this.value = this.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]/g, '');
+                    }
+                    // Para teléfono, solo permitir números
+                    if (fieldId === 'telefono') {
+                        this.value = this.value.replace(/[^0-9]/g, '');
+                    }
+                    validateField(fieldId);
+                });
+
+                field.addEventListener('blur', function () {
+                    validateField(fieldId);
+                });
+            });
+
+            // Manejar envío del formulario
+            form.addEventListener('submit', async function (e) {
+                e.preventDefault();
+
+                // Validar todos los campos
+                let allValid = true;
+                ['nombre', 'apellido', 'telefono', 'nacimiento', 'bautizado'].forEach(fieldId => {
+                    if (!validateField(fieldId)) {
+                        allValid = false;
+                    }
+                });
+
+                if (!allValid) {
+                    // Scroll al primer error
+                    const firstError = document.querySelector('.form-group.has-error');
+                    if (firstError) {
+                        firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                    return;
+                }
+
+                // Mostrar loading
+                submitBtn.classList.add('loading');
+                submitBtn.disabled = true;
+
+                // Preparar datos sanitizados
+                const formData = {
+                    nombre: sanitizeInput(document.getElementById('nombre').value),
+                    apellido: sanitizeInput(document.getElementById('apellido').value),
+                    telefono: document.getElementById('telefono').value.replace(/[^0-9]/g, ''),
+                    nacimiento: document.getElementById('nacimiento').value,
+                    bautizado: document.getElementById('bautizado').value
+                };
+
+                try {
+                    // Guardar en Firebase Firestore
+                    await db.collection('registros').add({
+                        ...formData,
+                        fecha_registro: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+
+                    // Mostrar mensaje de éxito
+                    form.style.display = 'none';
+                    successMessage.classList.add('show');
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Hubo un error al enviar el registro. Por favor intenta de nuevo.');
+                } finally {
+                    submitBtn.classList.remove('loading');
+                    submitBtn.disabled = false;
+                }
+            });
+
+            // Botón para nuevo registro
+            newRegisterBtn.addEventListener('click', function () {
+                form.reset();
+                form.style.display = 'block';
+                successMessage.classList.remove('show');
+
+                // Limpiar errores
+                document.querySelectorAll('.form-group').forEach(group => {
+                    group.classList.remove('has-error');
+                });
+                document.querySelectorAll('.form-input, .form-select').forEach(field => {
+                    field.classList.remove('error');
+                });
+            });
+
+            // Establecer fecha máxima para nacimiento (hoy)
+            const nacimientoField = document.getElementById('nacimiento');
+            const today = new Date().toISOString().split('T')[0];
+            nacimientoField.setAttribute('max', today);
+            nacimientoField.setAttribute('min', '1920-01-01');
+        });
+    </script>
+</body>
+
+</html>
